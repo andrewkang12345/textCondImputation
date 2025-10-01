@@ -389,7 +389,7 @@ class TextImputationDataset(Dataset):
         obs_flag = (~M).astype(np.float32)  # (T, A)
         x_in = np.concatenate([xy, obs_flag], axis=1).astype(np.float32)
 
-        y_gt = xy                                                     # (T, A*2)
+        y_gt = traj_aug.reshape(self.T, self.A * 2).astype(np.float32)  # (T, A*2)
         loss_mask = np.repeat(M.astype(np.float32), 2, axis=1)        # (T, A*2)
 
         out = {
