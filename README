@@ -1,77 +1,73 @@
-Vector-Conditioned Trajectory Imputation (Basketball, 8×5 Grid)
+🏀 Text-Conditioned Trajectory Imputation (Basketball, 8×5 Grid)
 
-Short version: This project predicts a single player’s future movement when that player is “masked” (hidden) for parts of a play.
-The model is guided by a simple 8×5 grid of the court (40 regions). You can provide those regions directly, or even write a short natural-language description (e.g., “he ran toward the goal and then drifted to the right wing”), which we translate into grid IDs with the OpenAI API.
+✨ What this does:
+We take basketball tracking data and hide one player’s movement for a few seconds. The model then fills in the missing path, guided by a text prompt you write — like:
+
+“the center set a screen near the foul line then rolled toward the goal post”
+
+Your text is turned into a grid-based conditioning signal that nudges the model to predict realistic paths.
 
 <p align="center">
   <img src="test.gif" alt="Prediction vs Ground Truth demo" width="720"/>
 </p>
 
 
-In the GIF:
-	•	Green = Ground Truth path for the masked player
-	•	Blue = Model’s predicted path for the masked player
-	•	Other players are shown in team colors
-	•	Left-to-right offense; coordinates are normalized to the court
+	•	✅ Green path/dots = Ground truth trajectory of the hidden player
+	•	🔵 Blue path/dots = Model’s prediction guided by your text
+	•	🟥🟦 Other players = Shown in team colors (from ground truth)
+	•	➡️ Offense moves right → left
 
 ⸻
 
-What you can do
-	•	🧠 Train a Transformer or Diffusion model that imputes masked trajectories
-	•	🗺️ Condition the prediction using a per-timestep 40-way one-hot region signal
-	•	✍️ Describe the intended path in plain English — we’ll map it to region IDs automatically (optional)
-	•	🎞️ Export GIFs overlaying predictions and ground truth (like test.gif)
-	•	📈 Report metrics (ADE, FDE, collision rate, smoothness)
+📦 Dataset
+
+We use basketball datasets from 👉 [UniTraj-pytorch](https://github.com/colorfulfuture/UniTraj-pytorch). 
+This is a preprocessed version of the dataset from [Eric Zhan, et al.](https://github.com/ezhan94/calibratable-style-consistency).
+Each file is a pickle containing a NumPy array shaped (N, T, A, 2):
+	•	N = number of plays
+	•	T = timesteps
+	•	A = players per play
+	•	(x, y) = player coordinates (feet or normalized to [0,1]).
+
+If in feet, we auto-scale by (x/94, y/50).
 
 ⸻
 
-1) Installation
+🎯 Why text conditioning?
+
+Instead of just guessing, the model uses your intent:
+	•	📝 You write a short prompt describing the movement.
+	•	🔄 We translate it into per-timestep grid regions.
+	•	🎛️ The model gets those as one-hot vectors (size 40) alongside player positions and masks.
+	•	🧠 It predicts movements that better align with your description.
+
+⸻
+
+🗺️ Court Grid
+	•	The court is split into an 8 (x) × 5 (y) grid → 40 regions.
+	•	Each timestep, the masked agent is assigned to one grid cell (ID = 0–39).
+	•	The model conditions on this per-timestep one-hot(40) vector.
+
+⸻
+
+⚙️ Installation
 
 # Python 3.9+ recommended
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-pip install -r requirements.txt  # or pip install torch torchvision torchaudio ...
-                                 # plus numpy, pillow, imageio, tqdm, transformers, etc.
+pip install -r requirements.txt
 
-Optional (only if you’ll use --prompt):
+If you want to use text prompts (--prompt), set your OpenAI key:
+
 export OPENAI_API_KEY=your_key_here
 
-⸻
-
-2) Data format
-
-We expect a pickle file with a single NumPy array shaped (N, T, A, 2):
-	•	N = number of sequences (plays)
-	•	T = timesteps per sequence
-	•	A = number of agents/players
-	•	Last axis (x, y) in feet or already [0,1] normalized
-(If values look like feet, we auto-normalize by (x/94, y/50).)
-
-Example paths used in scripts:
-	•	Train: /.../basketball/train_clean.p
-	•	Val/Test: /.../basketball/test_clean.p
 
 ⸻
 
-3) Court regions (conditioning signal)
+🚀 Training
 
-We discretize the court into an 8 (x) × 5 (y) grid → R = 40 bins.
-IDs are row-major:
-
-id = y * 8 + x
-x ∈ {0..7} left→right    y ∈ {0..4} bottom→top
-
-The model receives a one-hot vector of length 40 for the masked agent at each timestep.
-You can provide these region IDs in 3 ways (priority order):
-	1.	JSON list of integers: --region_ids_json "[0,0,1,1,2,...]" (length must equal T)
-	2.	Natural language: --prompt "…" (requires OPENAI_API_KEY)
-→ We convert your text into T grid IDs automatically.
-	3.	Oracle (default): we compute IDs from the masked agent’s ground-truth path (for testing).
-
-⸻
-
-4) Train
+Train a baseline Transformer on UniTraj data:
 
 python experiment.py \
   --train_traj /path/to/train_clean.p \
@@ -79,16 +75,37 @@ python experiment.py \
   --out_dir outputs \
   --epochs 30
 
-This runs the XL Transformer baseline (VectorConditionedImputerXL) and writes:
-	•	checkpoints to outputs/vec_xl_baseline/
-	•	a results row to outputs/results.csv
-	•	TensorBoard logs (if available)
+	•	📂 Checkpoints: outputs/vec_xl_baseline/best.pt, last.pt
+	•	📊 Results: outputs/results.csv (ADE, FDE, collisions, smoothness)
+	•	📈 Logs: TensorBoard support included
 
 ⸻
 
-5) Inference & GIFs
+🔮 Inference (make GIFs!)
 
-A) Oracle conditioning (no API needed)
+📝 A) With text prompt (recommended)
+
+python inference.py \
+  --checkpoint outputs/vec_xl_baseline/best.pt \
+  --traj_file /path/to/test_clean.p \
+  --masked_agent 1 \
+  --prompt "the center set a screen near the foul line then rolled toward the goal post" \
+  --gif_out test.gif \
+  --court_png court.png \
+  --metrics
+
+🔢 B) With explicit region IDs
+
+python inference.py \
+  --checkpoint outputs/vec_xl_baseline/best.pt \
+  --traj_file /path/to/test_clean.p \
+  --masked_agent 1 \
+  --region_ids_json "[0,0,1,1,2,2,3,...]" \
+  --gif_out test.gif \
+  --court_png court.png \
+  --metrics
+
+🟩 C) With Oracle regions (ground truth; for testing)
 
 python inference.py \
   --checkpoint outputs/vec_xl_baseline/best.pt \
@@ -98,71 +115,30 @@ python inference.py \
   --court_png court.png \
   --metrics
 
-B) Natural-language conditioning (OpenAI)
-
-export OPENAI_API_KEY=your_key_here
-
-python inference.py \
-  --checkpoint outputs/vec_xl_baseline/best.pt \
-  --traj_file /path/to/test_clean.p \
-  --masked_agent 1 \
-  --prompt "He started near half court, drove toward the rim, then drifted out to the right wing." \
-  --gif_out test.gif \
-  --court_png court.png \
-  --metrics
-
-C) Explicit region IDs
-
-python inference.py \
-  --checkpoint outputs/vec_xl_baseline/best.pt \
-  --traj_file /path/to/test_clean.p \
-  --masked_agent 1 \
-  --region_ids_json "[0,0,0,1,1,2,2,2,3,3, ... up to T entries ...]" \
-  --gif_out test.gif \
-  --court_png court.png \
-  --metrics
-
-What the GIF shows
-	•	Green path & dots: Ground-truth positions of the masked agent
-	•	Blue path & dots: Model predictions for the masked agent
-	•	Other players: Team-colored, always from ground truth
-	•	Text overlay shows t (frame), masked/observed status, and which conditioning was used
 
 ⸻
 
-6) Key shapes (for the technically curious)
+📐 Data shapes (for techies)
 
 For each sample:
-	•	Input x_in: shape (T, A*3 + R)
-	•	A*2 : all player coordinates (masked positions zeroed out)
-	•	A   : observation flags (1 = observed, 0 = masked)
-	•	R   : 40-way one-hot region for the masked agent
-	•	Target y_gt: (T, A*2) (full coordinates)
-	•	Loss mask loss_mask: (T, A*2) (1 where we supervise the masked agent)
-
-The Transformer predicts (T, A*2); Diffusion variant is also provided.
+	•	x_in : (T, A*3 + 40)
+	•	A*2 → player positions (masked coords zeroed)
+	•	A   → observation flags (1=observed, 0=masked)
+	•	40  → region one-hot for masked agent
+	•	y_gt : (T, A*2)
+	•	loss_mask : (T, A*2)
 
 ⸻
 
-7) Common options
-	•	--masked_agent INT : which player to hide/predict
-	•	--mask_start, --mask_end : frames (1-based masking; frame 0 always observed)
-	•	--gif_trail INT : number of trailing segments to draw in the GIF
-	•	--viz_show_ids : overlay numeric player IDs
-	•	--save_npy / --save_npz : dump arrays for downstream analysis
-	•	--device auto|cpu|cuda : device selection
+📊 Metrics
+	•	ADE: Average displacement error
+	•	FDE: Final displacement error
+	•	Collision rate: % of times players overlap unrealistically
+	•	Smoothness: Acceleration variance
 
 ⸻
 
-8) Troubleshooting
-	•	My GIF is empty / not found: Make sure --court_png points to a real file (e.g., court.png).
-	•	Region length mismatch: If you pass --region_ids_json, its length must equal the sequence’s T.
-	•	OpenAI errors: Ensure OPENAI_API_KEY is exported and you have access to the gpt-4.1-mini model.
-	•	Coordinates look wrong: We automatically normalize to [0,1]. If your data is already normalized, that’s fine.
-
-⸻
-
-9) Folder structure (suggested)
+📁 Suggested structure
 
 .
 ├── court.png
@@ -180,16 +156,9 @@ The Transformer predicts (T, A*2); Diffusion variant is also provided.
 
 ⸻
 
-10) License & attribution
-	•	Research/education use is encouraged. Check your dataset’s terms.
-	•	This repo includes no official NBA assets; court.png should be a generic court image.
+🏁 TL;DR
+	1.	📦 Download datasets from UniTraj-pytorch
+	2.	⚙️ Train with experiment.py
+	3.	✍️ Run inference.py with --prompt "your description"
+	4.	🎞️ Check test.gif: green = ground truth, blue = prediction
 
-⸻
-
-TL;DR
-	1.	Install deps (optional: set OPENAI_API_KEY)
-	2.	Train with experiment.py
-	3.	Run inference.py to produce test.gif
-	4.	Green = ground truth; Blue = prediction; Regions = simple 40-bin grid
-
-Happy hooping 🏀
