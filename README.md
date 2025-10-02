@@ -1,4 +1,4 @@
-# 🏀 Text-Conditioned Trajectory Imputation (Basketball, 8×5 Grid)
+# 🏀 Text-Conditioned Trajectory Imputation (Basketball)
 
 ✨ **What this does**  
 We take basketball tracking data and **hide one player’s movement** for a few seconds.  
@@ -6,14 +6,25 @@ The model then **fills in the missing path**, guided by a **text prompt** you wr
 
 > *“the center set a screen near the foul line then rolled toward the goal post”*
 
-Your text is turned into a **grid-based conditioning signal** that nudges the model to predict realistic paths.
+--- 
+
+Basketball tracking data is often incomplete — a player’s movement might be missing because of occlusion, sensor glitches, or data gaps. 📉
+Traditional imputation methods try to automatically guess these missing paths, but they don’t let analysts inject their own knowledge of the game context. That can lead to predictions that feel unrealistic or detached from what actually happened on the court. 🧐
+
+With text-conditioned imputation, we flip the script:
+	•	📝 You (the analyst) describe what happened — e.g., “the center set a screen near the foul line then rolled toward the goal post.”
+	•	🎛️ The model uses that prompt to generate a controllable, guided reconstruction of the missing trajectory.
+	•	🧠 Instead of a black-box guess, you get imputations that align with your tactical knowledge or what you observed in the video.
+
+This makes imputation not just accurate, but also interactive and analyst-driven — a big step beyond one-size-fits-all automation. 🚀
+
 
 <p align="center">
   <img src="test.gif" alt="Prediction vs Ground Truth demo" width="720"/>
 </p>
 
 - ✅ **Green path/dots** = Ground truth trajectory of the hidden player  
-- 🔵 **Blue path/dots** = Model’s prediction guided by your text  
+- 🔵 **Highlighted Blue path/dots** = Model’s prediction guided by your text  
 - 🟥🟦 **Other players** = Shown in team colors (from ground truth)  
 - ➡️ Offense moves **right → left**
 
@@ -143,28 +154,10 @@ For each sample:
 
 ---
 
-📁 Suggested structure
-
-.
-├── court.png
-├── dataset_text_imputer.py
-├── model.py
-├── experiment.py
-├── inference.py
-├── requirements.txt
-├── outputs/
-│   └── vec_xl_baseline/
-│       ├── best.pt
-│       └── last.pt
-└── test.gif   ← produced by inference.py
-
-
----
-
 🏁 TL;DR
 	1.	📦 Download datasets from UniTraj-pytorch
 	2.	⚙️ Train with experiment.py
 	3.	✍️ Run inference.py with --prompt "your description"
-	4.	🎞️ Check test.gif: green = ground truth, blue = prediction
+	4.	🎞️ Check test.gif: green = ground truth, highlighted blue = prediction
 
 ---
