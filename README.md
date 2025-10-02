@@ -6,7 +6,18 @@ The model then **fills in the missing path**, guided by a **text prompt** you wr
 
 > *“the center set a screen near the foul line then rolled toward the goal post”*
 
+<p align="center">
+  <img src="test.gif" alt="Prediction vs Ground Truth demo" width="720"/>
+</p>
+
+- ✅ **Green path/dots** = Ground truth trajectory of the hidden player  
+- 🔵 **Highlighted Blue path/dots** = Model’s prediction guided by your text  
+- 🟥🟦 **Other players** = Shown in team colors (from ground truth)  
+- ➡️ Offense moves **right → left**
+
 --- 
+
+✨ **Why this matters**  
 
 Basketball tracking data is often incomplete — a player’s movement might be missing because of occlusion, sensor glitches, or data gaps. 📉
 Traditional imputation methods try to automatically guess these missing paths, but they don’t let analysts inject their own knowledge of the game context. That can lead to predictions that feel unrealistic or detached from what actually happened on the court. 🧐
@@ -17,16 +28,6 @@ With text-conditioned imputation, we flip the script:
 	•	🧠 Instead of a black-box guess, you get imputations that align with your tactical knowledge or what you observed in the video.
 
 This makes imputation not just accurate, but also interactive and analyst-driven — a big step beyond one-size-fits-all automation. 🚀
-
-
-<p align="center">
-  <img src="test.gif" alt="Prediction vs Ground Truth demo" width="720"/>
-</p>
-
-- ✅ **Green path/dots** = Ground truth trajectory of the hidden player  
-- 🔵 **Highlighted Blue path/dots** = Model’s prediction guided by your text  
-- 🟥🟦 **Other players** = Shown in team colors (from ground truth)  
-- ➡️ Offense moves **right → left**
 
 ---
 
