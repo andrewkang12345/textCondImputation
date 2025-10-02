@@ -1,57 +1,66 @@
-🏀 Text-Conditioned Trajectory Imputation (Basketball, 8×5 Grid)
 
-✨ What this does:
-We take basketball tracking data and hide one player’s movement for a few seconds. The model then fills in the missing path, guided by a text prompt you write — like:
+⸻
 
-“the center set a screen near the foul line then rolled toward the goal post”
 
-Your text is turned into a grid-based conditioning signal that nudges the model to predict realistic paths.
+# 🏀 Text-Conditioned Trajectory Imputation (Basketball, 8×5 Grid)
+
+✨ **What this does**  
+We take basketball tracking data and **hide one player’s movement** for a few seconds.  
+The model then **fills in the missing path**, guided by a **text prompt** you write — like:
+
+> *“the center set a screen near the foul line then rolled toward the goal post”*
+
+Your text is turned into a **grid-based conditioning signal** that nudges the model to predict realistic paths.
 
 <p align="center">
   <img src="test.gif" alt="Prediction vs Ground Truth demo" width="720"/>
 </p>
 
+- ✅ **Green path/dots** = Ground truth trajectory of the hidden player  
+- 🔵 **Blue path/dots** = Model’s prediction guided by your text  
+- 🟥🟦 **Other players** = Shown in team colors (from ground truth)  
+- ➡️ Offense moves **right → left**
 
-	•	✅ Green path/dots = Ground truth trajectory of the hidden player
-	•	🔵 Blue path/dots = Model’s prediction guided by your text
-	•	🟥🟦 Other players = Shown in team colors (from ground truth)
-	•	➡️ Offense moves right → left
+---
 
-⸻
+## 📦 Dataset
 
-📦 Dataset
-
-We use basketball datasets from 👉 [UniTraj-pytorch](https://github.com/colorfulfuture/UniTraj-pytorch). 
+We use basketball datasets from 👉 [**UniTraj-pytorch**](https://github.com/colorfulfuture/UniTraj-pytorch).  
 This is a preprocessed version of the dataset from [Eric Zhan, et al.](https://github.com/ezhan94/calibratable-style-consistency).
-Each file is a pickle containing a NumPy array shaped (N, T, A, 2):
-	•	N = number of plays
-	•	T = timesteps
-	•	A = players per play
-	•	(x, y) = player coordinates (feet or normalized to [0,1]).
 
-If in feet, we auto-scale by (x/94, y/50).
+Each file is a pickle containing a NumPy array shaped **(N, T, A, 2):**
 
-⸻
+- `N` = number of plays  
+- `T` = timesteps  
+- `A` = players per play  
+- `(x, y)` = player coordinates (feet or normalized to `[0,1]`)  
 
-🎯 Why text conditioning?
+If in feet, we auto-scale by `(x/94, y/50)`.
 
-Instead of just guessing, the model uses your intent:
-	•	📝 You write a short prompt describing the movement.
-	•	🔄 We translate it into per-timestep grid regions.
-	•	🎛️ The model gets those as one-hot vectors (size 40) alongside player positions and masks.
-	•	🧠 It predicts movements that better align with your description.
+---
 
-⸻
+## 🎯 Why text conditioning?
 
-🗺️ Court Grid
-	•	The court is split into an 8 (x) × 5 (y) grid → 40 regions.
-	•	Each timestep, the masked agent is assigned to one grid cell (ID = 0–39).
-	•	The model conditions on this per-timestep one-hot(40) vector.
+Instead of just guessing, the model uses your **intent**:
 
-⸻
+- 📝 You write a short prompt describing the movement  
+- 🔄 We translate it into **per-timestep grid regions**  
+- 🎛️ The model gets those as **one-hot vectors (size 40)** alongside player positions and masks  
+- 🧠 It predicts movements that better align with your description  
 
-⚙️ Installation
+---
 
+## 🗺️ Court Grid
+
+- The court is split into an **8 (x) × 5 (y)** grid → **40 regions**  
+- Each timestep, the masked agent is assigned to one grid cell (`ID = 0–39`)  
+- The model conditions on this per-timestep **one-hot(40)** vector  
+
+---
+
+## ⚙️ Installation
+
+```bash
 # Python 3.9+ recommended
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
@@ -161,4 +170,6 @@ For each sample:
 	2.	⚙️ Train with experiment.py
 	3.	✍️ Run inference.py with --prompt "your description"
 	4.	🎞️ Check test.gif: green = ground truth, blue = prediction
+
+---
 
