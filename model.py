@@ -58,76 +58,42 @@ class HFTextEncoder(nn.Module):
         return (last * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1e-6)
 
 # ---------- Main imputer ----------
-class TextConditionedImputerXL(nn.Module):
+class VectorConditionedImputerXL(nn.Module):
     """
-    Inputs:
-      x_in: (B,T,A*3) = xy per agent + observed flags
-      text_batch: dict with 'input_ids','attention_mask'
-      loss_mask: (B,T,A*2) optional (used only for contrastive pooling)
+    Same transformer, but conditioning comes from extra channels in x_in:
+      x_in: (B, T, A*2 + A + R)   # xy + obs + region one-hot (masked agent)
+      loss_mask: (B, T, A*2)
     """
     def __init__(self,
                  num_agents: int,
-                 text_model_name: str = "sentence-transformers/all-mpnet-base-v2",
+                 region_dim: int,              # R
                  d_model: int = 512,
                  nhead: int = 16,
                  num_layers: int = 12,
-                 dropout: float = 0.1,
-                 use_contrastive: bool = True,
-                 proj_dim: int = 256,
-                 film_gating: bool = True,
-                 freeze_text: bool = False):
+                 dropout: float = 0.1):
         super().__init__()
         self.A = num_agents
-        self.in_dim = self.A * 3
+        self.R = region_dim
+        self.in_dim = self.A * 3 + self.R     # xy (A*2) + obs (A) + region (R)
         self.out_dim = self.A * 2
-        self.use_contrastive = use_contrastive
-        self.film_gating = film_gating
 
         self.frame_embed = nn.Linear(self.in_dim, d_model)
         self.pos = PositionalEncoding(d_model)
-
-        self.text_enc = HFTextEncoder(text_model_name, trainable=not freeze_text)
-        self.text_to_d = nn.Linear(self.text_enc.out_dim, d_model)
-        if film_gating:
-            self.gamma = nn.Linear(d_model, d_model)
-            self.beta = nn.Linear(d_model, d_model)
-
-        self.prefix = nn.Parameter(torch.zeros(1, 1, d_model))
-        self.blocks = nn.ModuleList([TransformerBlock(d_model, nhead, dropout=dropout, ffn_mult=4) for _ in range(num_layers)])
+        self.blocks = nn.ModuleList([TransformerBlock(d_model, nhead, dropout=dropout, ffn_mult=4)
+                                     for _ in range(num_layers)])
         self.norm = RMSNorm(d_model)
         self.head = nn.Linear(d_model, self.out_dim)
 
-        if use_contrastive:
-            self.traj_proj = nn.Linear(d_model, proj_dim)
-            self.text_proj = nn.Linear(d_model, proj_dim)
-            self.temperature = nn.Parameter(torch.tensor(0.05))
-
-    def forward(self, x_in, text_batch, loss_mask=None):
-        B, T, _ = x_in.shape
+    def forward(self, x_in, loss_mask=None):
+        # x_in: (B,T,in_dim)
         h = self.pos(self.frame_embed(x_in))
-        tvec = self.text_to_d(self.text_enc(text_batch["input_ids"], text_batch["attention_mask"]))  # (B,d)
-
-        # prefix + optional FiLM
-        prefix = self.prefix.expand(B, -1, -1) + tvec.unsqueeze(1)
-        if self.film_gating:
-            h = h * (1 + self.gamma(tvec).unsqueeze(1)) + self.beta(tvec).unsqueeze(1)
-
-        z = torch.cat([prefix, h], dim=1)
         for blk in self.blocks:
-            z = blk(z)
-        z = self.norm(z)
-        z_time = z[:, 1:, :]
-        pred = self.head(z_time)
-
-        # pooled features for contrastive (mean over masked timesteps; fallback to last)
-        pooled = None
-        if self.use_contrastive:
-            if (loss_mask is not None) and (loss_mask.sum() > 0):
-                masked_t = loss_mask.view(B, T, self.A, 2).any(dim=(2, 3)).float()
-                w = masked_t / (masked_t.sum(dim=1, keepdim=True) + 1e-8)
-                pooled = torch.bmm(w.unsqueeze(1), z_time).squeeze(1)
-            else:
-                pooled = z_time[:, -1, :]
+            h = blk(h)
+        z = self.norm(h)            # (B,T,D)
+        pred = self.head(z)         # (B,T,A*2)
+        # For API compatibility with training loop, also return dummy tvec/pooled
+        tvec = None
+        pooled = z[:, -1, :]        # (B,D)
         return pred, tvec, pooled
 
 # ---------- Losses ----------
