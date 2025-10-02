@@ -23,9 +23,9 @@ Basketball tracking data is often incomplete — a player’s movement might be 
 Traditional imputation methods try to automatically guess these missing paths, but they don’t let analysts inject their own knowledge of the game context. That can lead to predictions that feel unrealistic or detached from what actually happened on the court. 🧐
 
 With text-conditioned imputation, we flip the script:
-	•	📝 You (the analyst) describe what happened — e.g., “the center set a screen near the foul line then rolled toward the goal post.”
-	•	🎛️ The model uses that prompt to generate a controllable, guided reconstruction of the missing trajectory.
-	•	🧠 Instead of a black-box guess, you get imputations that align with your tactical knowledge or what you observed in the video.
+- 📝 You (the analyst) describe what happened — e.g., “the center set a screen near the foul line then rolled toward the goal post.”
+- 🎛️ The model uses that prompt to generate a controllable, guided reconstruction of the missing trajectory.
+- 🧠 Instead of a black-box guess, you get imputations that align with your tactical knowledge or what you observed in the video.
 
 This makes imputation not just accurate, but also interactive and analyst-driven — a big step beyond one-size-fits-all automation. 🚀
 
