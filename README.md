@@ -49,7 +49,7 @@ If in feet, we auto-scale by `(x/94, y/50)`.
 
 ## 🎯 Why text conditioning?
 
-Instead of just guessing, the model uses your **intent**:
+Instead of just guessing, the model adheres to your **controls**:
 
 - 📝 You write a short prompt describing the movement  
 - 🔄 We translate it into **per-timestep grid regions**  
@@ -58,11 +58,12 @@ Instead of just guessing, the model uses your **intent**:
 
 ---
 
-## 🗺️ Court Grid
+## 🗺️ Text to Grid
 
 - The court is split into an **8 (x) × 5 (y)** grid → **40 regions**  
 - Each timestep, the masked agent is assigned to one grid cell (`ID = 0–39`)  
 - The model conditions on this per-timestep **one-hot(40)** vector  
+- An **OpenAI API** outputs such a vector that adheres to the user prompt
 
 ---
 
